@@ -1,35 +1,19 @@
-# docker-pihole/Dockerfile
-FROM debian:bullseye-slim
+# Use official multi-arch base image from Pi-hole
+FROM pihole/pihole:latest
 
-LABEL maintainer="harborix <containers@harborix.net>"
+# Optional: Add custom dnsmasq config
+COPY 01-custom.conf /etc/dnsmasq.d/
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PIHOLE_VERSION=2024.05.0 \
-    DNSMASQ_USER=pihole \
-    PIHOLE_INSTALL_DIR=/opt/pihole
+# Optional: Predefine setupVars.conf (e.g. for password, DNS upstreams, etc.)
+COPY setupVars.conf /etc/pihole/setupVars.conf
 
-# Installiere Abhängigkeiten
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        curl bash git ca-certificates procps dnsutils iproute2 net-tools \
-        lsb-release cron iputils-ping sudo gnupg2 \
-        lighttpd php-common php-cgi php-sqlite3 php-intl php-xml && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Optional: Add custom list domains or allowlists
+COPY adlists.list /etc/pihole/adlists.list
 
-# Erstelle Benutzer und Verzeichnisse
-RUN useradd -r -d /etc/pihole -s /usr/sbin/nologin ${DNSMASQ_USER} && \
-    mkdir -p /etc/pihole /etc/dnsmasq.d
+# Optional: Adjust timezone or add ENV vars if needed
+ENV TZ=Europe/Zurich
 
-# Installiere Pi-hole
-RUN curl -sSL https://install.pi-hole.net | bash /dev/stdin --unattended
+# Expose standard ports (DNS + web UI)
+EXPOSE 53/tcp 53/udp 80/tcp 443/tcp
 
-# Kopiere das Entrypoint-Skript
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-EXPOSE 53/tcp 53/udp 80/tcp
-
-HEALTHCHECK --interval=30s --timeout=3s \
-    CMD dig +short pi.hole @127.0.0.1 || exit 1
-
-ENTRYPOINT ["/entrypoint.sh"]
+# CMD remains from base image
